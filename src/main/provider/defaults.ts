@@ -165,6 +165,20 @@ const PROVIDER_DEFAULTS: LLM_PROVIDER_BASE[] = [
     }
   },
   {
+    id: 'atmorouter',
+    name: 'AtmoRouter',
+    apiType: 'openai-completions',
+    apiKey: '',
+    baseUrl: 'https://atmorouter.dev/v1',
+    enable: false,
+    websites: {
+      official: 'https://atmorouter.dev',
+      apiKey: 'https://atmorouter.dev/dashboard/keys',
+      docs: 'https://atmorouter.dev/docs',
+      models: 'https://atmorouter.dev/models'
+    }
+  },
+  {
     id: 'yapi',
     name: 'Y-API',
     apiType: 'openai-completions',
@@ -176,6 +190,20 @@ const PROVIDER_DEFAULTS: LLM_PROVIDER_BASE[] = [
       apiKey: 'https://y-api.bestvirtualgoods.com/app/keys',
       docs: 'https://y-api.bestvirtualgoods.com/docs',
       models: 'https://y-api.bestvirtualgoods.com/models'
+    }
+  },
+  {
+    id: 'apimodels',
+    name: 'apimodels.app',
+    apiType: 'openai-completions',
+    apiKey: '',
+    baseUrl: 'https://api.apimodels.app/v1',
+    enable: false,
+    websites: {
+      official: 'https://apimodels.app/',
+      apiKey: 'https://apimodels.app/console/api-keys',
+      docs: 'https://apimodels.app/docs',
+      models: 'https://apimodels.app/models'
     }
   },
   {
@@ -620,6 +648,48 @@ const PROVIDER_DEFAULTS: LLM_PROVIDER_BASE[] = [
       apiKey: 'https://platform.opper.ai',
       docs: 'https://docs.opper.ai',
       models: 'https://opper.ai/models'
+    }
+  },
+  {
+    id: 'runcrate',
+    name: 'Runcrate',
+    apiType: 'openai-completions',
+    apiKey: '',
+    baseUrl: 'https://api.runcrate.ai/v1',
+    enable: false,
+    websites: {
+      official: 'https://www.runcrate.ai/?utm_source=deepchat',
+      apiKey: 'https://www.runcrate.ai/dashboard/api-keys?utm_source=deepchat',
+      docs: 'https://www.runcrate.ai/docs?utm_source=deepchat',
+      models: 'https://www.runcrate.ai/inference?utm_source=deepchat'
+    }
+  },
+  {
+    id: 'cloudgpu',
+    name: 'CloudGPU',
+    apiType: 'openai-completions',
+    apiKey: '',
+    baseUrl: 'https://cloudgpu.app/v1',
+    enable: false,
+    websites: {
+      official: 'https://cloudgpu.app/?utm_source=deepchat',
+      apiKey: 'https://cloudgpu.app/api/console?utm_source=deepchat',
+      docs: 'https://cloudgpu.app/api/docs?utm_source=deepchat',
+      models: 'https://cloudgpu.app/api?utm_source=deepchat'
+    }
+  },
+  {
+    id: 'aistupidlevel',
+    name: 'AI Stupid Level',
+    apiType: 'openai-completions',
+    apiKey: '',
+    baseUrl: 'https://aistupidlevel.info/v1',
+    enable: false,
+    websites: {
+      official: 'https://aistupidlevel.info/',
+      apiKey: 'https://aistupidlevel.info/router/keys',
+      docs: 'https://aistupidlevel.info/router/docs',
+      models: 'https://aistupidlevel.info/router/docs#strategies'
     }
   },
   {

@@ -1759,6 +1759,33 @@ export class AiSdkProvider extends BaseLLMProvider {
         return this.fetchLiteLLMModels()
       case 'demonroute':
         return this.fetchDemonRouteModels()
+      case 'apimodels': {
+        const records = await this.fetchOpenAIModelRecords({
+          timeout: this.getModelFetchTimeout()
+        })
+        const models: MODEL_META[] = []
+        for (const model of records) {
+          if (typeof model.id !== 'string' || !model.id.trim() || model.modality !== 'chat') {
+            continue
+          }
+          models.push({
+            id: model.id,
+            name: model.id,
+            group: 'default',
+            providerId: this.provider.id,
+            isCustom: false,
+            type: ModelType.Chat,
+            ...(typeof model.owned_by === 'string' && model.owned_by.trim().length > 0
+              ? { ownedBy: model.owned_by.trim() }
+              : {})
+          })
+        }
+        return models
+      }
+      case 'runcrate':
+        return this.fetchRuncrateModels()
+      case 'cloudgpu':
+        return this.fetchCloudgpuModels()
       case 'bedrock':
         return this.fetchBedrockModels()
       case 'new-api':
@@ -2107,6 +2134,89 @@ export class AiSdkProvider extends BaseLLMProvider {
         ...(contextLength !== undefined ? { contextLength } : {}),
         ...(maxTokens !== undefined ? { maxTokens } : {}),
         ...(typeof model.description === 'string' ? { description: model.description } : {})
+      })
+    }
+    return models
+  }
+
+  /**
+   * Runcrate's public catalog also lists image, video, audio and embedding models.
+   * Keep the text-in, text-out models and read the limits and features it publishes.
+   */
+  private async fetchRuncrateModels(): Promise<MODEL_META[]> {
+    const records = await this.fetchOpenAIModelRecords({ timeout: this.getModelFetchTimeout() })
+    const toStrings = (value: unknown): string[] | undefined =>
+      Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === 'string')
+        : undefined
+
+    const models: MODEL_META[] = []
+    for (const model of records) {
+      const modelId = typeof model.id === 'string' ? model.id.trim() : ''
+      const outputModalities = toStrings(model.output_modalities)
+      const inputModalities = toStrings(model.input_modalities)
+      if (!modelId || !outputModalities?.includes('text') || !inputModalities?.includes('text')) {
+        continue
+      }
+      const features = toStrings(model.supported_features)
+      const contextLength = toPositiveFiniteNumber(model.context_length)
+      const maxTokens = toPositiveFiniteNumber(model.max_output_length)
+      models.push({
+        id: modelId,
+        name: modelId,
+        group: 'default',
+        providerId: this.provider.id,
+        isCustom: false,
+        type: ModelType.Chat,
+        ...(contextLength !== undefined ? { contextLength } : {}),
+        ...(maxTokens !== undefined ? { maxTokens } : {}),
+        ...(features
+          ? { functionCall: features.includes('tools'), reasoning: features.includes('reasoning') }
+          : {}),
+        ...(inputModalities ? { vision: inputModalities.includes('image') } : {}),
+        ...(typeof model.owned_by === 'string' && model.owned_by.trim()
+          ? { ownedBy: model.owned_by.trim() }
+          : {})
+      })
+    }
+    return models
+  }
+
+  /**
+   * CloudGPU's public catalog answers without a key and has no capability field. List every id
+   * except the ones that are clearly not chat models (embedding, rerank, image, audio, speech).
+   */
+  private async fetchCloudgpuModels(): Promise<MODEL_META[]> {
+    const records = await this.fetchOpenAIModelRecords({ timeout: this.getModelFetchTimeout() })
+    const nonChatPatterns = [
+      'embed',
+      'rerank',
+      'image',
+      'flux-',
+      'audio',
+      'speech',
+      'tts',
+      'whisper',
+      '-asr',
+      'transcri'
+    ]
+    const models: MODEL_META[] = []
+    for (const model of records) {
+      const modelId = typeof model.id === 'string' ? model.id.trim() : ''
+      const lower = modelId.toLowerCase()
+      if (!modelId || nonChatPatterns.some((pattern) => lower.includes(pattern))) {
+        continue
+      }
+      models.push({
+        id: modelId,
+        name: modelId,
+        group: 'default',
+        providerId: this.provider.id,
+        isCustom: false,
+        type: ModelType.Chat,
+        ...(typeof model.owned_by === 'string' && model.owned_by.trim()
+          ? { ownedBy: model.owned_by.trim() }
+          : {})
       })
     }
     return models

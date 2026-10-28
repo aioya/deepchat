@@ -96,6 +96,26 @@ is required.
 Upstream references: [OpenAI compatibility](https://docs.fireworks.ai/tools-sdks/openai-compatibility)
 and [GPT OSS 120B model ID](https://fireworks.ai/models/fireworks/gpt-oss-120b).
 
+## APIMODELS
+
+`apimodels` uses the OpenAI-compatible transport with API-key credentials. Live model discovery
+keeps only records with `modality: 'chat'`; other catalog entries require unsupported routes.
+The catalog is public, so connection checks generate text with `gpt-5.6-luna` and the shared
+16-token output limit to validate credentials. Embeddings are disabled for this profile.
+
+Upstream reference: [Language Models API](https://apimodels.app/docs/llm?p=openai).
+
+## CloudGPU
+
+`cloudgpu` uses the OpenAI-compatible transport with API-key credentials. Live model discovery
+lists every chat model from the public `/v1/models` catalog. The catalog has no capability field,
+so ids that are clearly not chat models (embedding, rerank, image, audio, speech, TTS and
+transcription ids) are skipped by name. The catalog is public, so connection checks generate text
+with `deepseek-v4.1-flash` and the shared 16-token output limit to validate credentials.
+Embeddings are disabled for this profile.
+
+Upstream reference: [API docs](https://cloudgpu.app/api/docs?utm_source=deepchat).
+
 ## OpenAI Codex
 
 `openai-codex` is separate from standard `openai`: distinct provider ID, runtime kind, credential store,

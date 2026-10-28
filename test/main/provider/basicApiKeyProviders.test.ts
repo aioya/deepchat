@@ -878,6 +878,20 @@ describe('basic API-key provider registrations', () => {
     expect(mockRunAiSdkGenerateText).not.toHaveBeenCalled()
   })
 
+  it('resolves AI Stupid Level as a text-only API-key gateway with model discovery', () => {
+    expect(
+      resolveAiSdkProviderDefinition(DEFAULT_PROVIDERS.find(({ id }) => id === 'aistupidlevel')!)
+    ).toMatchObject({
+      runtimeKind: 'openai-compatible',
+      modelSource: 'openai',
+      checkStrategy: 'fetch-models',
+      credentialStrategy: 'api-key',
+      routeStrategy: 'none',
+      embeddingStrategy: 'openai',
+      textOnlyInput: true
+    })
+  })
+
   it('resolves Cheaper Inference through authenticated OpenAI-compatible model discovery', () => {
     expect(
       resolveAiSdkProviderDefinition(
@@ -914,6 +928,128 @@ describe('basic API-key provider registrations', () => {
       routeStrategy: 'none',
       embeddingStrategy: 'none'
     })
+  })
+
+  it('resolves AtmoRouter through authenticated OpenAI-compatible model discovery', () => {
+    expect(
+      resolveAiSdkProviderDefinition(
+        createProvider({
+          id: 'atmorouter',
+          name: 'AtmoRouter',
+          baseUrl: 'https://atmorouter.dev/v1'
+        })
+      )
+    ).toMatchObject({
+      runtimeKind: 'openai-compatible',
+      modelSource: 'openai',
+      checkStrategy: 'fetch-models',
+      credentialStrategy: 'api-key',
+      routeStrategy: 'none',
+      embeddingStrategy: 'none'
+    })
+  })
+
+  it('resolves apimodels.app with chat-only discovery and a text-generation check', () => {
+    expect(
+      resolveAiSdkProviderDefinition(
+        createProvider({
+          id: 'apimodels',
+          name: 'apimodels.app',
+          baseUrl: 'https://api.apimodels.app/v1'
+        })
+      )
+    ).toMatchObject({
+      runtimeKind: 'openai-compatible',
+      modelSource: 'apimodels',
+      checkStrategy: 'generate-text',
+      credentialStrategy: 'api-key',
+      routeStrategy: 'none',
+      embeddingStrategy: 'none',
+      checkModelId: 'gpt-5.6-luna'
+    })
+  })
+
+  it('lists only chat models from the public apimodels.app catalog', async () => {
+    const defaults = DEFAULT_PROVIDERS.find(({ id }) => id === 'apimodels')!
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        object: 'list',
+        data: [
+          { id: 'gpt-5.6-luna', modality: 'chat', owned_by: 'apimodels' },
+          ...['video', 'image', 'audio', 'embedding', 'decision', 'unknown'].map((modality) => ({
+            id: `${modality}-model`,
+            modality
+          })),
+          { id: 'missing-modality' },
+          { id: 123, modality: 'chat' },
+          { id: ' ', modality: 'chat' }
+        ]
+      })
+    )
+    global.fetch = fetchMock
+    const provider = new AiSdkProvider(defaults, createProviderSettings())
+
+    expect(await provider.fetchModels({ suppressErrors: false })).toEqual([
+      {
+        id: 'gpt-5.6-luna',
+        name: 'gpt-5.6-luna',
+        group: 'default',
+        providerId: 'apimodels',
+        isCustom: false,
+        type: 'chat',
+        ownedBy: 'apimodels'
+      }
+    ])
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.apimodels.app/v1/models',
+      expect.objectContaining({ method: 'GET' })
+    )
+    fetchMock.mockResolvedValueOnce(new Response('Catalog unavailable', { status: 503 }))
+    await expect(provider.fetchModels({ suppressErrors: false })).rejects.toThrow(
+      'Catalog unavailable'
+    )
+    expect(await provider.check()).toMatchObject({ isOk: false, errorMsg: 'Missing API key' })
+    expect(mockRunAiSdkGenerateText).not.toHaveBeenCalled()
+  })
+
+  it.each([200, 401])('checks apimodels.app credentials through chat (HTTP %s)', async (status) => {
+    const defaults = DEFAULT_PROVIDERS.find(({ id }) => id === 'apimodels')!
+    const actual = await vi.importActual<typeof import('../../../src/main/provider/aiSdk')>(
+      '../../../src/main/provider/aiSdk'
+    )
+    mockRunAiSdkGenerateText.mockImplementationOnce(actual.runAiSdkGenerateText)
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(
+        status === 200
+          ? {
+              id: 'completion-1',
+              object: 'chat.completion',
+              created: 1,
+              model: 'gpt-5.6-luna',
+              choices: [
+                { index: 0, message: { role: 'assistant', content: 'Hi' }, finish_reason: 'stop' }
+              ],
+              usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }
+            }
+          : { error: { message: 'Invalid API key', type: 'authentication_error' } },
+        { status }
+      )
+    )
+    global.fetch = fetchMock
+    const provider = new AiSdkProvider(
+      { ...defaults, apiKey: 'test-key' },
+      createProviderSettings()
+    )
+
+    expect(await provider.check()).toEqual({
+      isOk: status === 200,
+      errorMsg: status === 200 ? null : 'Invalid API key'
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe('https://api.apimodels.app/v1/chat/completions')
+    expect(new Headers(init.headers).get('authorization')).toBe('Bearer test-key')
+    expect(JSON.parse(init.body)).toMatchObject({ model: 'gpt-5.6-luna' })
   })
 
   it('resolves Y-API through authenticated OpenAI-compatible model discovery', () => {
@@ -1550,6 +1686,178 @@ describe('basic API-key provider registrations', () => {
       expect.any(Object),
       0.2,
       16
+    )
+  })
+
+  it('checks Runcrate with a chat model instead of its public model list', async () => {
+    const defaults = DEFAULT_PROVIDERS.find((provider) => provider.id === 'runcrate')!
+    expect(defaults).toBeDefined()
+    const config = { ...defaults, apiKey: 'test-key' }
+    // Runcrate's /v1/models answers without a key, so listing models cannot validate one.
+    expect(resolveAiSdkProviderDefinition(config)).toMatchObject({
+      runtimeKind: 'openai-compatible',
+      modelSource: 'runcrate',
+      checkStrategy: 'generate-text',
+      credentialStrategy: 'api-key',
+      checkModelId: 'deepseek-ai/DeepSeek-V4.1-Flash'
+    })
+    const provider = new AiSdkProvider(config, createProviderSettings())
+    ;(provider as any).isInitialized = true
+
+    await expect(provider.check()).resolves.toEqual({ isOk: true, errorMsg: null })
+    expect(mockRunAiSdkGenerateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerKind: 'openai-compatible',
+        provider: expect.objectContaining({
+          id: 'runcrate',
+          apiKey: 'test-key',
+          baseUrl: 'https://api.runcrate.ai/v1'
+        })
+      }),
+      [{ role: 'user', content: 'Hello' }],
+      'deepseek-ai/DeepSeek-V4.1-Flash',
+      expect.any(Object),
+      0.2,
+      16
+    )
+  })
+
+  it('checks CloudGPU with a chat model instead of its public model list', async () => {
+    const defaults = DEFAULT_PROVIDERS.find((provider) => provider.id === 'cloudgpu')!
+    expect(defaults).toBeDefined()
+    const config = { ...defaults, apiKey: 'test-key' }
+    // CloudGPU's /v1/models answers without a key, so listing models cannot validate one.
+    expect(resolveAiSdkProviderDefinition(config)).toMatchObject({
+      runtimeKind: 'openai-compatible',
+      modelSource: 'cloudgpu',
+      checkStrategy: 'generate-text',
+      credentialStrategy: 'api-key',
+      embeddingStrategy: 'none',
+      checkModelId: 'deepseek-v4.1-flash'
+    })
+    const provider = new AiSdkProvider(config, createProviderSettings())
+    ;(provider as any).isInitialized = true
+
+    await expect(provider.check()).resolves.toEqual({ isOk: true, errorMsg: null })
+    expect(mockRunAiSdkGenerateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerKind: 'openai-compatible',
+        provider: expect.objectContaining({
+          id: 'cloudgpu',
+          apiKey: 'test-key',
+          baseUrl: 'https://cloudgpu.app/v1'
+        })
+      }),
+      [{ role: 'user', content: 'Hello' }],
+      'deepseek-v4.1-flash',
+      expect.any(Object),
+      0.2,
+      16
+    )
+  })
+
+  it('lists every CloudGPU catalog id except non-chat models', async () => {
+    const defaults = DEFAULT_PROVIDERS.find(({ id }) => id === 'cloudgpu')!
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        object: 'list',
+        data: [
+          { id: 'auto', owned_by: 'cloudgpu' },
+          { id: 'deepseek-v4.1-flash', owned_by: 'cloudgpu' },
+          { id: 'kimi-k3', owned_by: 'cloudgpu' },
+          { id: 'glm-5.1', owned_by: '  ' },
+          { id: 'minimax-m3' },
+          { id: 'vendor-chat-large' },
+          { id: 'flux-1-schnell' },
+          { id: 'glm-image' },
+          { id: 'deepseek-embed' },
+          { id: 'vendor-reranker' },
+          { id: 'whisper-v3' },
+          { id: 'kokoro-tts' },
+          { id: 'vendor-asr' },
+          { id: 'vendor-audio-preview' },
+          { id: '  ' },
+          { id: 12 }
+        ]
+      })
+    )
+    global.fetch = fetchMock
+    const provider = new AiSdkProvider(defaults, createProviderSettings())
+
+    const models = await provider.fetchModels({ suppressErrors: false })
+    expect(models.map(({ id }) => id)).toEqual([
+      'auto',
+      'deepseek-v4.1-flash',
+      'kimi-k3',
+      'glm-5.1',
+      'minimax-m3',
+      'vendor-chat-large'
+    ])
+    expect(models).toContainEqual({
+      id: 'auto',
+      name: 'auto',
+      group: 'default',
+      providerId: 'cloudgpu',
+      isCustom: false,
+      type: 'chat',
+      ownedBy: 'cloudgpu'
+    })
+    expect(models.find(({ id }) => id === 'glm-5.1')).not.toHaveProperty('ownedBy')
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://cloudgpu.app/v1/models',
+      expect.objectContaining({ method: 'GET' })
+    )
+  })
+
+  it('lists only text chat models from the public Runcrate catalog', async () => {
+    const defaults = DEFAULT_PROVIDERS.find(({ id }) => id === 'runcrate')!
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        object: 'list',
+        data: [
+          {
+            id: 'Qwen/Qwen3-Next-80B-A3B-Instruct',
+            owned_by: 'Qwen',
+            input_modalities: ['text'],
+            output_modalities: ['text'],
+            context_length: 262144,
+            max_output_length: 235929,
+            supported_features: ['tools', 'json_mode']
+          },
+          { id: 'Qwen/Qwen-Image', input_modalities: ['text'], output_modalities: ['image'] },
+          { id: 'BAAI/bge-m3', input_modalities: ['text'], output_modalities: ['embeddings'] },
+          {
+            id: 'openai/whisper-large-v3-turbo',
+            input_modalities: ['audio'],
+            output_modalities: ['text']
+          },
+          { id: 'missing-input-modalities', output_modalities: ['text'] },
+          { id: 'missing-modalities' }
+        ]
+      })
+    )
+    global.fetch = fetchMock
+    const provider = new AiSdkProvider(defaults, createProviderSettings())
+
+    expect(await provider.fetchModels({ suppressErrors: false })).toEqual([
+      {
+        id: 'Qwen/Qwen3-Next-80B-A3B-Instruct',
+        name: 'Qwen/Qwen3-Next-80B-A3B-Instruct',
+        group: 'default',
+        providerId: 'runcrate',
+        isCustom: false,
+        type: 'chat',
+        contextLength: 262144,
+        maxTokens: 235929,
+        functionCall: true,
+        reasoning: false,
+        vision: false,
+        ownedBy: 'Qwen'
+      }
+    ])
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.runcrate.ai/v1/models',
+      expect.objectContaining({ method: 'GET' })
     )
   })
 

@@ -134,6 +134,61 @@ describe('DEFAULT_PROVIDERS', () => {
     )
   })
 
+  it('includes Runcrate as a disabled built-in OpenAI-compatible provider', () => {
+    expect(DEFAULT_PROVIDERS).toContainEqual(
+      expect.objectContaining({
+        id: 'runcrate',
+        name: 'Runcrate',
+        apiType: 'openai-completions',
+        baseUrl: 'https://api.runcrate.ai/v1',
+        enable: false,
+        websites: expect.objectContaining({
+          apiKey: 'https://www.runcrate.ai/dashboard/api-keys?utm_source=deepchat',
+          docs: 'https://www.runcrate.ai/docs?utm_source=deepchat',
+          defaultBaseUrl: 'https://api.runcrate.ai/v1'
+        })
+      })
+    )
+  })
+
+  it('includes CloudGPU as a disabled built-in OpenAI-compatible provider', () => {
+    expect(DEFAULT_PROVIDERS).toContainEqual(
+      expect.objectContaining({
+        id: 'cloudgpu',
+        name: 'CloudGPU',
+        apiType: 'openai-completions',
+        baseUrl: 'https://cloudgpu.app/v1',
+        enable: false,
+        websites: expect.objectContaining({
+          official: 'https://cloudgpu.app/?utm_source=deepchat',
+          apiKey: 'https://cloudgpu.app/api/console?utm_source=deepchat',
+          docs: 'https://cloudgpu.app/api/docs?utm_source=deepchat',
+          models: 'https://cloudgpu.app/api?utm_source=deepchat',
+          defaultBaseUrl: 'https://cloudgpu.app/v1'
+        })
+      })
+    )
+  })
+
+  it('includes AI Stupid Level as a disabled built-in OpenAI-compatible provider', () => {
+    expect(DEFAULT_PROVIDERS).toContainEqual(
+      expect.objectContaining({
+        id: 'aistupidlevel',
+        name: 'AI Stupid Level',
+        apiType: 'openai-completions',
+        baseUrl: 'https://aistupidlevel.info/v1',
+        enable: false,
+        websites: expect.objectContaining({
+          official: 'https://aistupidlevel.info/',
+          apiKey: 'https://aistupidlevel.info/router/keys',
+          docs: 'https://aistupidlevel.info/router/docs',
+          models: 'https://aistupidlevel.info/router/docs#strategies',
+          defaultBaseUrl: 'https://aistupidlevel.info/v1'
+        })
+      })
+    )
+  })
+
   it('includes DemonRoute as a disabled built-in OpenAI-compatible provider', () => {
     expect(DEFAULT_PROVIDERS).toContainEqual(
       expect.objectContaining({
@@ -190,6 +245,25 @@ describe('DEFAULT_PROVIDERS', () => {
     )
   })
 
+  it('includes AtmoRouter as a disabled built-in OpenAI-compatible provider', () => {
+    expect(DEFAULT_PROVIDERS).toContainEqual(
+      expect.objectContaining({
+        id: 'atmorouter',
+        name: 'AtmoRouter',
+        apiType: 'openai-completions',
+        baseUrl: 'https://atmorouter.dev/v1',
+        enable: false,
+        websites: expect.objectContaining({
+          official: 'https://atmorouter.dev',
+          apiKey: 'https://atmorouter.dev/dashboard/keys',
+          docs: 'https://atmorouter.dev/docs',
+          models: 'https://atmorouter.dev/models',
+          defaultBaseUrl: 'https://atmorouter.dev/v1'
+        })
+      })
+    )
+  })
+
   it('includes Y-API as a disabled built-in OpenAI-compatible provider', () => {
     expect(DEFAULT_PROVIDERS).toContainEqual(
       expect.objectContaining({
@@ -204,6 +278,25 @@ describe('DEFAULT_PROVIDERS', () => {
           docs: 'https://y-api.bestvirtualgoods.com/docs',
           models: 'https://y-api.bestvirtualgoods.com/models',
           defaultBaseUrl: 'https://api.y-api.bestvirtualgoods.com/v1'
+        })
+      })
+    )
+  })
+
+  it('includes apimodels.app as a disabled built-in OpenAI-compatible provider', () => {
+    expect(DEFAULT_PROVIDERS).toContainEqual(
+      expect.objectContaining({
+        id: 'apimodels',
+        name: 'apimodels.app',
+        apiType: 'openai-completions',
+        baseUrl: 'https://api.apimodels.app/v1',
+        enable: false,
+        websites: expect.objectContaining({
+          official: 'https://apimodels.app/',
+          apiKey: 'https://apimodels.app/console/api-keys',
+          docs: 'https://apimodels.app/docs',
+          models: 'https://apimodels.app/models',
+          defaultBaseUrl: 'https://api.apimodels.app/v1'
         })
       })
     )
